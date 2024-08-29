@@ -138,19 +138,19 @@ def extract_ip_address(lease):
 
 def extract_ddns_txt(lease):
     for line in lease:
-        if line.strip().startswith('ddns-txt'):
+        if line.strip().startswith('set ddns-txt'):
             return line.split()[3].strip('";')
     return None
 
 def extract_ddns_rev_name(lease):
     for line in lease:
-        if line.strip().startswith('ddns-rev-name'):
+        if line.strip().startswith('set ddns-rev-name'):
             return line.split()[3].strip('";')
     return None
 
 def extract_ddns_fwd_name(lease):
     for line in lease:
-        if line.strip().startswith('ddns-fwd-name'):
+        if line.strip().startswith('set ddns-fwd-name'):
             return line.split()[3].strip('";')
     return None
 
