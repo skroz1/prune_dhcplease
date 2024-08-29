@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 
+# SFC 2024-08-29
+# Delete one or more leases from a dhcpd.leases file based on MAC address.  Optionally purge expired leases and duplicates.
+# Usage: prune_dhcpleases.py [-h] [-i INPUT] [-p] [mac_addresses [mac_addresses ...]]
+
 import sys
 import os
 import re
@@ -9,6 +13,7 @@ import shutil
 from datetime import datetime
 
 def backup_file(original_file):
+    """Create a backup of the original file with a timestamp appended to the filename."""
     timestamp = time.strftime('%Y%m%d%H%M%S')
     backup_filename = f"{original_file}-{timestamp}"
     try:
@@ -19,6 +24,7 @@ def backup_file(original_file):
         sys.exit(1)
 
 def prune_leases(input_file, mac_addresses):
+    """Remove leases from the input file that match the specified MAC addresses."""
     with open(input_file, 'r') as file:
         lines = file.readlines()
 
@@ -27,6 +33,7 @@ def prune_leases(input_file, mac_addresses):
     current_lease = []
     removed_lease_count = 0
 
+    # Process the file
     for line in lines:
         if line.startswith('lease'):
             skip_lease = False
@@ -34,11 +41,13 @@ def prune_leases(input_file, mac_addresses):
 
         current_lease.append(line)
 
+        # look for mac addrresses
         if line.strip().startswith('hardware ethernet'):
             lease_mac = line.split()[2].strip(';')
             if lease_mac in mac_addresses:
                 skip_lease = True
 
+        # janky and terrifying
         if line.strip() == '}':
             if skip_lease:
                 removed_lease_count += 1
@@ -50,6 +59,7 @@ def prune_leases(input_file, mac_addresses):
     return new_lines, removed_lease_count
 
 def purge_leases(input_file):
+    """Remove expired and duplicate leases from the input file. VERY SCARY BOYS AND GIRLS"""
     with open(input_file, 'r') as file:
         lines = file.readlines()
 
@@ -155,6 +165,8 @@ def extract_ddns_fwd_name(lease):
     return None
 
 def output_ddns_info(lease):
+    """print information about the rrsets that could be removed.  
+    If the other party was scary and the other thing was terrifying, this is just a horror show"""
     ip_address = extract_ip_address(lease)
     rev_name = extract_ddns_rev_name(lease)
     fwd_name = extract_ddns_fwd_name(lease)
@@ -179,7 +191,7 @@ def main():
     # Print CSV header
     print("IP Address,DDNS Rev Name,DDNS Fwd Name,DDNS TXT")
 
-    # Backup the original file
+    # Back up the original file
     backup_filename = backup_file(args.input)
 
     if args.purge:
