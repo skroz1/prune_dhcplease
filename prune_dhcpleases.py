@@ -42,6 +42,7 @@ def prune_leases(input_file, mac_addresses):
         if line.strip() == '}':
             if skip_lease:
                 removed_lease_count += 1
+                output_ddns_info(current_lease)
             else:
                 new_lines.extend(current_lease)
             current_lease = []  # Reset after processing each lease block
@@ -66,6 +67,7 @@ def purge_leases(input_file):
                 if mac and ends and ends < now:
                     # Remove expired leases
                     removed_lease_count += 1
+                    output_ddns_info(current_lease)
                 elif mac:
                     # Save non-expired lease to dictionary
                     if mac not in leases_by_mac:
@@ -83,6 +85,7 @@ def purge_leases(input_file):
             if mac and ends and ends < now:
                 # Remove expired leases
                 removed_lease_count += 1
+                output_ddns_info(current_lease)
             elif mac:
                 if mac not in leases_by_mac:
                     leases_by_mac[mac] = []
@@ -98,6 +101,8 @@ def purge_leases(input_file):
             leases.sort(key=lambda l: extract_start_date(l), reverse=True)
             new_lines.extend(leases[0])
             removed_lease_count += len(leases) - 1
+            for lease in leases[1:]:
+                output_ddns_info(lease)
         elif len(leases) == 1:
             new_lines.extend(leases[0])
 
@@ -125,6 +130,40 @@ def extract_end_date(lease):
             return datetime.strptime(date_time_str, "%Y/%m/%d %H:%M:%S")
     return None
 
+def extract_ip_address(lease):
+    for line in lease:
+        if line.startswith('lease'):
+            return line.split()[1]
+    return None
+
+def extract_ddns_txt(lease):
+    for line in lease:
+        if line.strip().startswith('ddns-txt'):
+            return line.split()[3].strip('";')
+    return None
+
+def extract_ddns_rev_name(lease):
+    for line in lease:
+        if line.strip().startswith('ddns-rev-name'):
+            return line.split()[3].strip('";')
+    return None
+
+def extract_ddns_fwd_name(lease):
+    for line in lease:
+        if line.strip().startswith('ddns-fwd-name'):
+            return line.split()[3].strip('";')
+    return None
+
+def output_ddns_info(lease):
+    ip_address = extract_ip_address(lease)
+    rev_name = extract_ddns_rev_name(lease)
+    fwd_name = extract_ddns_fwd_name(lease)
+    txt_record = extract_ddns_txt(lease)
+
+    # Only print if any DDNS information is present
+    if rev_name or fwd_name or txt_record:
+        print(f"{ip_address},{rev_name},{fwd_name},{txt_record}")
+
 def main():
     parser = argparse.ArgumentParser(description="Prune or purge DHCP leases.")
     parser.add_argument('-i', '--input', help="Input dhcpd.leases file path", default='dhcpd.leases')
@@ -136,6 +175,9 @@ def main():
     if not os.path.exists(args.input):
         print(f"Error: The file '{args.input}' does not exist.")
         sys.exit(1)
+
+    # Print CSV header
+    print("IP Address,DDNS Rev Name,DDNS Fwd Name,DDNS TXT")
 
     # Backup the original file
     backup_filename = backup_file(args.input)
