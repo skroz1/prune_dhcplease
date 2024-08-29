@@ -136,3 +136,4 @@ tests/*.key
 tests/testhost
 *.code-workspace
 pyvenv.cfg
+dhcpd.leases*
